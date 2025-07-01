@@ -1,19 +1,33 @@
 package com.distribuidora.inventario.messaging;
 
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.stereotype.Component;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class EventPublisher {
 
-    private final RabbitTemplate rabbitTemplate;
+    private final AmqpTemplate rabbitTemplate;
 
-    public EventPublisher(RabbitTemplate rabbitTemplate) {
+    public EventPublisher(AmqpTemplate rabbitTemplate) {
         this.rabbitTemplate = rabbitTemplate;
     }
 
-    public void enviarEvento(String routingKey, String mensaje) {
-        rabbitTemplate.convertAndSend("orden.exchange", routingKey, mensaje);
-        System.out.println("📤 Inventario publicó evento: " + routingKey + " -> " + mensaje);
+    public void publicarInventarioOk(String ordenId) {
+        Map<String, Object> evento = new HashMap<>();
+        evento.put("evento", "INVENTARIO_OK");
+        evento.put("ordenId", ordenId);
+
+        rabbitTemplate.convertAndSend("ordenes-exchange", "inventario.ok", evento);
+    }
+
+    public void publicarInventarioFallo(String ordenId) {
+        Map<String, Object> evento = new HashMap<>();
+        evento.put("evento", "INVENTARIO_FALLO");
+        evento.put("ordenId", ordenId);
+
+        rabbitTemplate.convertAndSend("ordenes-exchange", "inventario.fallo", evento);
     }
 }

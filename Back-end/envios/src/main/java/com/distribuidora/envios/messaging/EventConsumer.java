@@ -1,25 +1,24 @@
 package com.distribuidora.envios.messaging;
 
 import com.distribuidora.envios.service.EnvioService;
-import com.distribuidora.envios.entity.Envio;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 @Component
 public class EventConsumer {
 
-    @Autowired
-    private EnvioService servicio;
+    private final EnvioService service;
 
-    @RabbitListener(queues = "despacho.preparado.queue")
-    public void recibirEvento(String mensaje) {
-        System.out.println("📥 Envios recibió: " + mensaje);
+    public EventConsumer(EnvioService service) {
+        this.service = service;
+    }
 
-        // Simulación de extracción de ordenId
-        String ordenId = "ORD-" + System.currentTimeMillis();
-
-        Envio envio = servicio.procesarEnvio(ordenId);
-        System.out.println("🚚 Envío registrado para orden " + envio.getOrdenId());
+    @RabbitListener(queues = "despacho-listo-queue")
+    public void recibirEventoDespachoListo(Map<String, Object> evento) {
+        System.out.println("📦 Evento LISTO_PARA_ENVIO recibido: " + evento);
+        String ordenId = (String) evento.get("ordenId");
+        service.procesarEnvio(ordenId);
     }
 }

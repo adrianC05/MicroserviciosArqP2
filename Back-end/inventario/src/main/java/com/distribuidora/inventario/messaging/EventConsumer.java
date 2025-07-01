@@ -1,57 +1,46 @@
 package com.distribuidora.inventario.messaging;
 
-import com.distribuidora.inventario.entity.Producto;
-import com.distribuidora.inventario.repository.InventarioRepository;
 import com.distribuidora.inventario.service.InventarioService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import java.util.Optional;
-import com.distribuidora.inventario.dto.OrdenDTO;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class EventConsumer {
 
-    @Autowired
-    private InventarioService servicio;
+    private final InventarioService service;
+    private final EventPublisher publisher;
 
-    @Autowired
-    private InventarioRepository repo;
+    public EventConsumer(InventarioService service, EventPublisher publisher) {
+        this.service = service;
+        this.publisher = publisher;
+    }
 
-    @Autowired
-    private EventPublisher publisher;
+    @RabbitListener(queues = "ordenes-queue")
+    public void recibirEventoOrdenCreada(Map<String, Object> evento) {
+        System.out.println("📩 Evento recibido: " + evento);
 
-    @RabbitListener(queues = "orden.creada.queue")
-    public void recibirEvento(String mensaje) {
-        System.out.println("📥 Inventario recibió: " + mensaje);
+        String ordenId = (String) evento.get("ordenId");
+        List<Map<String, Object>> productos = (List<Map<String, Object>>) evento.get("productos");
 
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            OrdenDTO orden = mapper.readValue(mensaje, OrdenDTO.class);
+        Map<String, Integer> stockPorSku = new HashMap<>();
+        for (Map<String, Object> p : productos) {
+            String sku = (String) p.get("sku");
+            Integer cantidad = (Integer) p.get("cantidad");
+            stockPorSku.put(sku, cantidad);
+        }
 
-            String producto = orden.getProducto();
-            int cantidad = orden.getCantidad();
-            String ordenId = orden.getOrdenId();
-
-            Optional<Producto> productoOpt = repo.findByNombre(producto);
-            if (productoOpt.isPresent()) {
-                boolean descontado = servicio.descontarStock(producto, cantidad);
-                if (descontado) {
-                    // ✅ enviar JSON correcto
-                    String json = "{\"ordenId\":\"" + ordenId + "\"}";
-                    publisher.enviarEvento("stock.descontado", json);
-                } else {
-                    String json = "{\"ordenId\":\"" + ordenId + "\", \"error\":\"Sin stock\"}";
-                    publisher.enviarEvento("stock.fallo", json);
-                }
-            } else {
-                System.out.println("⚠️ Producto no encontrado en inventario: " + producto);
-                String json = "{\"ordenId\":\"" + ordenId + "\", \"error\":\"Producto no encontrado\"}";
-                publisher.enviarEvento("stock.fallo", json);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        boolean ok = service.descontarStock(stockPorSku);
+        if (ok) {
+            System.out.println("✅ INVENTARIO_OK para orden: " + ordenId);
+            publisher.publicarInventarioOk(ordenId);
+        } else {
+            System.out.println("❌ INVENTARIO_FALLO para orden: " + ordenId);
+            publisher.publicarInventarioFallo(ordenId);
         }
     }
 }
+

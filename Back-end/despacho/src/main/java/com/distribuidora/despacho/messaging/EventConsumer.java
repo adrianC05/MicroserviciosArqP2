@@ -1,44 +1,24 @@
 package com.distribuidora.despacho.messaging;
 
-import com.distribuidora.despacho.entity.Despacho;
-import com.distribuidora.despacho.repository.DespachoRepository;
+import com.distribuidora.despacho.service.DespachoService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
+
+import java.util.Map;
 
 @Component
 public class EventConsumer {
 
-    @Autowired
-    private DespachoRepository repo;
+    private final DespachoService service;
 
-    @Autowired
-    private EventPublisher publisher;
+    public EventConsumer(DespachoService service) {
+        this.service = service;
+    }
 
-    @RabbitListener(queues = "stock.descontado.queue")
-    public void recibirEvento(String mensaje) {
-        System.out.println("📥 Despacho recibió: " + mensaje);
-
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode json = mapper.readTree(mensaje);
-
-            String ordenId = json.has("ordenId") ? json.get("ordenId").asText() : "ORD-" + System.currentTimeMillis();
-
-            // Crear entidad despacho
-            Despacho despacho = new Despacho();
-            despacho.setOrdenId(ordenId);
-            despacho.setEstado("DESPACHADO");
-
-            repo.save(despacho);
-
-            // Publicar evento de despacho exitoso
-            publisher.enviarEvento("orden.despachada", "Orden " + ordenId + " despachada");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    @RabbitListener(queues = "cobro-ok-queue")
+    public void recibirCobroOk(Map<String, Object> evento) {
+        System.out.println("📥 Evento COBRO_OK recibido: " + evento);
+        String ordenId = (String) evento.get("ordenId");
+        service.procesarDespacho(ordenId);
     }
 }

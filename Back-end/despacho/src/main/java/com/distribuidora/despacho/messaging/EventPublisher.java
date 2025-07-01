@@ -1,19 +1,25 @@
 package com.distribuidora.despacho.messaging;
 
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 @Component
 public class EventPublisher {
 
-    private final RabbitTemplate rabbitTemplate;
+    private final AmqpTemplate rabbitTemplate;
 
-    public EventPublisher(RabbitTemplate rabbitTemplate) {
+    public EventPublisher(AmqpTemplate rabbitTemplate) {
         this.rabbitTemplate = rabbitTemplate;
     }
 
-    public void enviarEvento(String routingKey, String mensaje) {
-        rabbitTemplate.convertAndSend("orden.exchange", routingKey, mensaje);
-        System.out.println("📤 Despacho publicó evento: " + routingKey + " -> " + mensaje);
+    public void publicarListoParaEnvio(String ordenId) {
+        rabbitTemplate.convertAndSend(
+                "ordenes-exchange",
+                "despacho.listo",
+                Map.of("evento", "LISTO_PARA_ENVIO", "ordenId", ordenId)
+        );
+        System.out.println("📤 Evento LISTO_PARA_ENVIO publicado para orden: " + ordenId);
     }
 }

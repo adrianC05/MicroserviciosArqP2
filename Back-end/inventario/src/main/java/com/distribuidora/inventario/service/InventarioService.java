@@ -1,38 +1,31 @@
 package com.distribuidora.inventario.service;
 
 import com.distribuidora.inventario.entity.Producto;
-import com.distribuidora.inventario.repository.InventarioRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.distribuidora.inventario.repository.ProductoRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-import java.util.List;
+import java.util.Map;
 
 @Service
 public class InventarioService {
 
-    @Autowired
-    private InventarioRepository repo;
+    private final ProductoRepository repo;
 
-    public boolean descontarStock(String nombre, int cantidad) {
-        Optional<Producto> productoOpt = repo.findByNombre(nombre);
-        if (productoOpt.isPresent()) {
-            Producto producto = productoOpt.get();
-            if (producto.getStock() >= cantidad) {
-                producto.setStock(producto.getStock() - cantidad);
-                repo.save(producto);
-                return true;
-            }
+    public InventarioService(ProductoRepository repo) {
+        this.repo = repo;
+    }
+
+    public boolean descontarStock(Map<String, Integer> productos) {
+        for (Map.Entry<String, Integer> entry : productos.entrySet()) {
+            String sku = entry.getKey();
+            Integer cantidad = entry.getValue();
+
+            Producto p = repo.findById(sku).orElse(null);
+            if (p == null || p.getStock() < cantidad) return false;
+
+            p.setStock(p.getStock() - cantidad);
+            repo.save(p);
         }
-        return false;
+        return true;
     }
-
-    public Producto registrarProducto(Producto producto) {
-        return repo.save(producto);
-    }
-
-    public List<Producto> listarProductos() {
-        return repo.findAll();
-    }
-
 }

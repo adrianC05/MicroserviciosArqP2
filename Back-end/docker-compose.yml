@@ -9,7 +9,6 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-    restart: always
 
       # ---------------- API GATEWAY ----------------
       # gateway:

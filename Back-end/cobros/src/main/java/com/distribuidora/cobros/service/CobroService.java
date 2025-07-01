@@ -1,49 +1,24 @@
 package com.distribuidora.cobros.service;
 
-import com.distribuidora.cobros.entity.Transaccion;
-import com.distribuidora.cobros.repository.CobroRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.distribuidora.cobros.messaging.EventPublisher;
 import org.springframework.stereotype.Service;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
-
-import java.util.List;
-import java.util.ArrayList; // ✅ Asegúrate de importar esto
 
 @Service
 public class CobroService {
 
-    @Autowired
-    private CobroRepository cobroRepository;
+    private final EventPublisher publisher;
 
-
-    public Transaccion procesarPagoDesdeMensaje(String mensaje) {
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode json = mapper.readTree(mensaje);
-
-            String ordenId = json.get("ordenId").asText();  // asegúrate de que el mensaje JSON tenga "ordenId"
-            return procesarPago(ordenId);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+    public CobroService(EventPublisher publisher) {
+        this.publisher = publisher;
     }
 
-    public Transaccion procesarPago(String ordenId) {
-        Transaccion trans = new Transaccion();
-        trans.setOrdenId(ordenId);
-        trans.setEstado("EXITO"); // Si quieres que todos los pagos sean exitosos
-        return cobroRepository.save(trans);
+    public void procesarCobro(String ordenId) {
+        System.out.println("💳 Procesando cobro para orden: " + ordenId);
 
-    }
+        // Simulación simple: siempre OK
+        boolean aprobado = true;
 
-    public List<Transaccion> listarTransacciones() {
-        return cobroRepository.findAll();
-    }
-    public List<Transaccion> obtenerTodosLosCobros() {
-        List<Transaccion> lista = cobroRepository.findAll();
-        return lista != null ? lista : new ArrayList<>();
+        publisher.publicarResultadoCobro(ordenId, aprobado);
+        System.out.println(aprobado ? "✅ COBRO_OK" : "❌ COBRO_FALLIDO");
     }
 }
